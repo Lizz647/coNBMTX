@@ -16,7 +16,7 @@ estimate_H0_FC_zero <- function(y,yg,X,post_phi_mtx, size_factor_mtx, size_facto
   }
 
   # print(ini.FCs)
-  opt.vec <- optim(par = ini.FCs,fn=calc.nb.FC.H0.loglik, method = "L-BFGS-B", lower=-40,
+  opt.vec <- stats::optim(par = ini.FCs,fn=calc.nb.FC.H0.loglik, method = "L-BFGS-B", lower=-40,
                    upper = 40, y = y, yg = yg, X=X,  phi = post_phi_mtx,
                    size_factor_mtx = size_factor_mtx, size_factor_mgx = size_factor_mgx, j=j)
   FCs <- opt.vec$par
@@ -69,10 +69,10 @@ GetFCsigma <- function(FCs,j){
   } else {
     FCs_moderate <- FCs[,j]
   }
-  high = quantile(FCs_moderate,0.95)
-  low = quantile(FCs_moderate,0.05)
+  high = stats::quantile(FCs_moderate,0.95)
+  low = stats::quantile(FCs_moderate,0.05)
 
   med <- (abs(high)+abs(low))/2
-  sigma = med/(qnorm(0.95,mean=0,sd=1))
+  sigma = med/(stats::qnorm(0.95,mean=0,sd=1))
   sigma
 }

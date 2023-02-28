@@ -11,7 +11,7 @@ estimate_FC_zero <- function(y,yg,X,post_phi_mtx, size_factor_mtx, size_factor_m
     size_factor_mgx <- size_factor_mgx[-del_index]
   }
 
-  opt.vec <- optim(par = ini.FCs,fn=calc.nb.FC.loglik, method = "L-BFGS-B", lower=-40,
+  opt.vec <- stats::optim(par = ini.FCs,fn=calc.nb.FC.loglik, method = "L-BFGS-B", lower=-40,
                    upper = 40, y = y, yg = yg, X=X,  phi = post_phi_mtx,
                    size_factor_mtx = size_factor_mtx, size_factor_mgx = size_factor_mgx)
   FCs <- opt.vec$par
@@ -55,8 +55,7 @@ estimate_FC_shrink_zero <- function(y,yg,X,post_phi_mtx,FC_sigma,size_factor_mtx
     size_factor_mgx <- size_factor_mgx[-del_index]
   }
 
-  opt.vec <- optim(par = ini.FCs,fn=calc.nb.FC.loglik.shrink, method = "L-BFGS-B", lower=-40,
-                   upper = 40, y = y, yg = yg, X=X,  phi = post_phi_mtx, FC_sigma = FC_sigma,
+  opt.vec <- stats::optim(par = ini.FCs,fn=calc.nb.FC.loglik.shrink, method = "L-BFGS-B", lower=-40,
                    size_factor_mtx = size_factor_mtx, size_factor_mgx = size_factor_mgx)
   FCs <- opt.vec$par
 

@@ -1,8 +1,41 @@
+#' Conditional negative binomial regression for sample-paired mgx and mtx data
+#'
+#' @param datamat A list contains mtx, mgx and metadata.
+#' @param group_formula Specify the group information.
+#' @param normal_method Specify the way to estimate the scaling factor.
+#'
+#' @return A list contains the analysis result of each gene.
+#' @export
+#'
+#' @examples
+#' mtxtable <- matrix(rnbinom(5000,size=10,mu=50),nrow=100)
+#' mgxtable <- matrix(rnbinom(5000,size=5,mu=30),nrow=100)
+#' metatable <- data.frame(ID=paste("S",seq(1:50),sep=""),group=c(rep("a",25),rep("b",25)))
+#' datamat = list(mtx=mtxtable,mgx=mgxtable,metadata=metatable)
+#' group_formula = "~group"
+#' output = coNBMTX(datamat=datamat,group_formula=group_formula)
+#'
+
 coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
 
   simu_rna <- datamat$mtx
   simu_dna <- datamat$mgx
   simu_meta <- datamat$metadata
+
+  # check col and row names
+  check_rname = rownames(simu_rna)
+  if(is.null(check_rname)){
+    rownames(simu_dna) = paste("G",seq(1:dim(simu_dna)[1]),sep="")
+    rownames(simu_rna) = paste("G",seq(1:dim(simu_rna)[1]),sep="")
+  }
+
+  check_cname = colnames(simu_rna)
+  if(is.null(check_cname)){
+    colnames(simu_dna) = paste("S",seq(1:dim(simu_dna)[2]),sep="")
+    colnames(simu_rna) = paste("S",seq(1:dim(simu_rna)[2]),sep="")
+    rownames(simu_meta) = paste("S",seq(1:dim(simu_rna)[2]),sep="")
+  }
+
   # DE_genes = simu_datamat$DE_gene
 
   message("Preprocessing...")
@@ -16,7 +49,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
 
   # we add this part later
   # simu_meta$diagnosis <- relevel(as.factor(simu_meta$diagnosis),"nonIBD")
-  design_mat <- model.matrix(~get(groups[[1]][1]),data=simu_meta)
+  design_mat <- stats::model.matrix(~get(groups[[1]][1]),data=simu_meta)
 
   # prepare corresponding data to return
   genewise_phi_mtx.full = rep(-1,dim(simu_rna)[1])
@@ -36,7 +69,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
   chivars_list = list()
 
   # just deal with the situation of two groups
-  lackgroup_gene = GetLackGroupGenes(simu_dna = simu_dna,simu_rna = simu_rna)
+  lackgroup_gene = GetLackGroupGenes(simu_dna = simu_dna,simu_rna = simu_rna, design_mat = design_mat)
 
   # filter low expression genes
   zero_mgx_gene <- apply(simu_dna,1,zero_prop)
@@ -131,7 +164,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
     }
     normalized_mtx[i,index] = as.numeric(simu_rna[i,index] * size_factor_mgx[index] /
                                            (size_factor_mtx[index]*simu_dna[i,index]))
-    val = as.numeric(quantile(normalized_mtx[i,index],c(0.975)))
+    val = as.numeric(stats::quantile(normalized_mtx[i,index],c(0.975)))
     del_index2 <- which(normalized_mtx[i,index]/val>20)
     if(length(del_index2)>0){
       normalized_mtx[i,index][del_index2] = -1
@@ -193,7 +226,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
   }
   cor_list <- c()
   for(i in badmodel_ind){
-    cor_list = c(cor_list,cor(as.numeric(datamat$mtx[i,]),as.numeric(datamat$mgx[i,])))
+    cor_list = c(cor_list,stats::cor(as.numeric(datamat$mtx[i,]),as.numeric(datamat$mgx[i,])))
   }
 
   ## filter many zeros
@@ -227,7 +260,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
 
     # find outliers
     reciprocal_mu <- 1/mtxmean[-naind]
-    trend_predict <- predict(reg,newdata = data.frame(mu=reciprocal_mu))
+    trend_predict <- stats::predict(reg,newdata = data.frame(mu=reciprocal_mu))
     trend_disp_outlier <- which(abs(log(genewise_phi_mtx[-naind])-log(trend_predict))>2*est_sigma_trend)
     # length(trend_disp_outlier)
   } else {
@@ -242,7 +275,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
 
     # find outliers
     reciprocal_mu <- 1/mtxmean
-    trend_predict <- predict(reg,newdata = data.frame(mu=reciprocal_mu))
+    trend_predict <- stats::predict(reg,newdata = data.frame(mu=reciprocal_mu))
     trend_disp_outlier <- which(abs(log(genewise_phi_mtx)-log(trend_predict))>2*est_sigma_trend)
   }
 
@@ -252,6 +285,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
 
   message("Estimating posterior dispersion...")
 
+  cond_disp_est = T
   post_phi_mtx <- c()
 
   # recall that ----------------------
@@ -259,9 +293,9 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
   # mgxmean <- apply(mtx_count,1,mean)
 
   if(length(naind)>0){
-    trend <- predict(reg, newdata = data.frame(mu=1/(mtxmean[-naind])))
+    trend <- stats::predict(reg, newdata = data.frame(mu=1/(mtxmean[-naind])))
   } else {
-    trend <- predict(reg, newdata = data.frame(mu=1/(mtxmean)))
+    trend <- stats::predict(reg, newdata = data.frame(mu=1/(mtxmean)))
   }
 
   for(i in 1:dim(mtx_count)[1]){
@@ -291,7 +325,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
       est_sigma_DNA = 3 # nonsense
       flag <- 2
       phi <- try(estimate_post_phi(y[index],mu[index],design_mat[index,],
-                                   trend[i],est_sigma_trend,trend_dna[i],est_sigma_DNA, flag))
+                                   trend[i],est_sigma_trend,flag))
 
       if('try-error' %in% class(phi)){
         post_phi_mtx <- c(post_phi_mtx, NA)
@@ -316,6 +350,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
   ######################
 
   message("Estimating fold changes...")
+  FCshrink = T
 
   FCs <- rep(0,dim(design_mat)[2])
   for(i in 1:dim(mtx_count)[1]){
@@ -490,7 +525,7 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
     # get pvals
     pvals = c()
     for(i in 1:length(chivars)){
-      pval <- 1 - pchisq(chivars[i],df=1)
+      pval <- 1 - stats::pchisq(chivars[i],df=1)
       pvals = c(pvals,pval)
     }
     pvals.full[left_gene] = pvals
@@ -501,10 +536,10 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
 
     chivars.full[left_gene] = chivars
 
-    padj[validind] <- p.adjust(pvals[validind],method = "BH")
+    padj[validind] <- stats::p.adjust(pvals[validind],method = "BH")
     padj.full[left_gene] = padj
 
-    padj.bf[validind] <- p.adjust(pvals[validind],method = "bonferroni")
+    padj.bf[validind] <- stats::p.adjust(pvals[validind],method = "bonferroni")
     padj.bf.full[left_gene] = padj.bf
 
     pvals_list[[j-1]] = pvals.full
@@ -573,6 +608,22 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
   return(output)
 }
 
+#' Get a table for the analysis result of coNBMTX
+#'
+#' @param output The output of coNBMTX.
+#'
+#' @return A dataframe contains the analysis result of all genes.
+#' @export
+#'
+#' @examples
+#' mtxtable <- matrix(rnbinom(5000,size=10,mu=50),nrow=100)
+#' mgxtable <- matrix(rnbinom(5000,size=5,mu=30),nrow=100)
+#' metatable <- data.frame(ID=paste("S",seq(1:50),sep=""),group=c(rep("a",25),rep("b",25)))
+#' datamat = list(mtx=mtxtable,mgx=mgxtable,metadata=metatable)
+#' group_formula = "~group"
+#' output = coNBMTX(datamat=datamat,group_formula=group_formula)
+#' Tab = GetTab(output)
+#'
 GetTab <- function(output){
   Tab = data.frame(GeneName=output$GeneName,AvgDNA=output$AvgDNA,AvgRNA=output$AvgRNA,
                    Disps=output$Dispersions,nc_Disps=output$nonconDispersions)
@@ -598,6 +649,23 @@ GetTab <- function(output){
   return(Tab)
 }
 
+#' Get the top table for the analysis result of coNBMTX
+#'
+#' @param output The output of coNBMTX.
+#' @param groupname The name of the group you want to check.
+#'
+#' @return A dataframe contains the analysis result of top 10 genes.
+#' @export
+#'
+#' @examples
+#' mtxtable <- matrix(rnbinom(5000,size=10,mu=50),nrow=100)
+#' mgxtable <- matrix(rnbinom(5000,size=5,mu=30),nrow=100)
+#' metatable <- data.frame(ID=paste("S",seq(1:50),sep=""),group=c(rep("a",25),rep("b",25)))
+#' datamat = list(mtx=mtxtable,mgx=mgxtable,metadata=metatable)
+#' group_formula = "~group"
+#' output = coNBMTX(datamat=datamat,group_formula=group_formula)
+#' topTab = TopTab(output,groupname="a)
+#'
 TopTab <- function(output,groupname){
   Tab = data.frame(GeneName=output$GeneName,AvgDNA=output$AvgDNA,AvgRNA=output$AvgRNA,
                    Disps=output$Dispersions,nc_Disps=output$nonconDispersions)
@@ -621,7 +689,7 @@ TopTab <- function(output,groupname){
     Tab[ID] = output$adj.P.Vals[[i]]
   }
 
-  colind = which(str_detect(colnames(Tab),groupname) & str_detect(colnames(Tab),"P.vals") & !str_detect(colnames(Tab),"adj.P.vals"))
+  colind = which(stringr::str_detect(colnames(Tab),groupname) & stringr::str_detect(colnames(Tab),"P.vals") & !stringr::str_detect(colnames(Tab),"adj.P.vals"))
   orderedTab = Tab[order(Tab[,colind]),]
   return(orderedTab[1:10,])
 }

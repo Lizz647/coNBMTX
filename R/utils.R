@@ -23,7 +23,12 @@ Normalize_factor <- function(mtx,mgx,method="TSS",meta){
     factors = list(factors_mtx, factors_mgx)
 
   } else if (method == "CSS"){ # not accessible since no taxa-level info
-    library(metagenomeSeq)
+    # require(Biobase)
+    # if (!require("metagenomeSeq", quietly = TRUE)){
+    #   BiocManager::install("metagenomeSeq")
+    #   require("metagenomeSeq")
+    # }
+    # require(metagenomeSeq)
 
     #mtx
     feature_anot <- data.frame(feature=rownames(mtx),Taxonomy=rownames(mtx))
@@ -37,25 +42,27 @@ Normalize_factor <- function(mtx,mgx,method="TSS",meta){
 
     rownames(meta) = colnames(mtx)
 
-    phenotypeData = AnnotatedDataFrame(meta)
-    featuredata = AnnotatedDataFrame(feature_anot)
+    phenotypeData = Biobase::AnnotatedDataFrame(meta)
+    featuredata = Biobase::AnnotatedDataFrame(feature_anot)
 
     rownames(mgx) = rownames(mtx)
-    obj_mtx = newMRexperiment(mtx,phenoData=phenotypeData,featureData=featuredata)
-    p = cumNormStatFast(obj_mtx)
-    obj_mtx = cumNorm(obj_mtx, p = p)
+    obj_mtx = metagenomeSeq::newMRexperiment(mtx,phenoData=phenotypeData,featureData=featuredata)
+    p = metagenomeSeq::cumNormStatFast(obj_mtx)
+    obj_mtx = metagenomeSeq::cumNorm(obj_mtx, p = p)
 
     #mgx
-    obj_mgx = newMRexperiment(mgx,phenoData=phenotypeData,featureData=featuredata)
-    p = cumNormStatFast(obj_mgx)
-    obj_mgx = cumNorm(obj_mgx, p = p)
+    obj_mgx = metagenomeSeq::newMRexperiment(mgx,phenoData=phenotypeData,featureData=featuredata)
+    p = metagenomeSeq::cumNormStatFast(obj_mgx)
+    obj_mgx = metagenomeSeq::cumNorm(obj_mgx, p = p)
 
-    factors_mtx = normFactors(obj_mtx)/mean(normFactors(obj_mtx))
-    factors_mgx = normFactors(obj_mgx)/mean(normFactors(obj_mgx))
+    factors_mtx = metagenomeSeq::normFactors(obj_mtx)/mean(metagenomeSeq::normFactors(obj_mtx))
+    factors_mgx = metagenomeSeq::normFactors(obj_mgx)/mean(metagenomeSeq::normFactors(obj_mgx))
     factors = list(factors_mtx, factors_mgx)
 
   } else if (method == "TMM"){
-    library(edgeR) # need more considerations
+
+    # require(edgeR)
+
     sample_sum <- apply(mtx,2,sum)
     factors_mtx = sample_sum / mean(sample_sum)
     # adjust lib size
@@ -70,17 +77,6 @@ Normalize_factor <- function(mtx,mgx,method="TSS",meta){
 
     factors = list(factors_mtx, factors_mgx)
 
-  }else if(method == "GMPR"){
-    library(GMPR)
-    library(DESeq2)
-    require(vegan)
-    require(GUniFrac)
-
-    factors_mtx = GMPR(mtx)
-    factors_mgx = GMPR(mgx)
-
-    factors = list(factors_mtx,factors_mgx)
-
   } else {
     print("No such method!")
   }
@@ -93,24 +89,24 @@ geom_mean <- function(x){
 get_median <- function(x,geom_means){
   index <- which(geom_means==0)
   x = x[-index]; geom_means = geom_means[-index]
-  median(x/geom_means)
+  stats::median(x/geom_means)
 }
 
 # get dispersion trend
 GetTrendReg <- function(trenddataframe_mtx,genewise_phi_mtx){
   print(trenddataframe_mtx)
-  reg <- glm(dispersion~mu,data=trenddataframe_mtx, family = Gamma(link = "identity"), start = c(0.5,0.5))
+  reg <- stats::glm(dispersion~mu,data=trenddataframe_mtx, family = stats::Gamma(link = "identity"), start = c(0.5,0.5))
   ## fit iteratively
   flag = 1000000; maxit = 10; index=c()
   genewise_phi_mtx_copy <- genewise_phi_mtx
   while(flag>1e-3 & maxit > 0){
     coef_ss <- sum(as.numeric(reg$coefficients)^2)
     if(is.null(index)){
-      MyPredict = predict(reg)
+      MyPredict = stats::predict(reg)
       ratio = genewise_phi_mtx/MyPredict
     } else {
       genewise_phi_mtx_copy[index] = 0
-      res = predict(reg)
+      res = stats::predict(reg)
       index_left = setdiff(1:length(genewise_phi_mtx_copy),index)
       MyPredict[index_left] = res
       ratio = genewise_phi_mtx_copy/MyPredict
@@ -122,7 +118,7 @@ GetTrendReg <- function(trenddataframe_mtx,genewise_phi_mtx){
     }
 
     trenddataframe_mtx_new <- trenddataframe_mtx[-index,]
-    reg <- glm(dispersion~mu,data=trenddataframe_mtx_new, family = Gamma(link = "identity"), start = c(0.5,0.5))
+    reg <- stats::glm(dispersion~mu,data=trenddataframe_mtx_new, family = stats::Gamma(link = "identity"), start = c(0.5,0.5))
 
     new_coef_ss <- sum(as.numeric(reg$coefficients)^2)
     flag <- abs(new_coef_ss - coef_ss)
@@ -134,13 +130,13 @@ GetTrendReg <- function(trenddataframe_mtx,genewise_phi_mtx){
 est_trend_sigma <- function(reg,genewise_phi_mtx,trend_outlier,m,p){
 
   log_disp = log(genewise_phi_mtx)
-  MyPredict = predict(reg)
+  MyPredict = stats::predict(reg)
   log_mean = log(MyPredict)
 
   if(length(trend_outlier)<=0){
-    slr = mad(log_disp-log_mean)
+    slr = stats::mad(log_disp-log_mean)
   } else {
-    slr = mad(log_disp[-trend_outlier]-log_mean)
+    slr = stats::mad(log_disp[-trend_outlier]-log_mean)
   }
 
   # adjust for sampling dist
@@ -148,4 +144,24 @@ est_trend_sigma <- function(reg,genewise_phi_mtx,trend_outlier,m,p){
 
   est_sigma_trend <- slr - adj
   est_sigma_trend
+}
+
+GetLackGroupGenes <- function(simu_dna,simu_rna,design_mat){
+  lackgroup_gene = c()
+  for(i in 1:dim(simu_rna)[1]){
+    Y = design_mat
+    rnazero <- which(simu_rna[i,]==0)
+    dnazero <- which(simu_dna[i,]==0)
+    index <- which(simu_dna[i,]!=0)
+    del_index <- dnazero
+    if(length(del_index)>0){
+      Y = Y[-del_index,]
+    }
+    if(is.null(dim(Y))){
+      lackgroup_gene = c(lackgroup_gene,i)
+    } else if(length(unique(Y[,2]))==1){
+      lackgroup_gene = c(lackgroup_gene,i)
+    }
+  }
+  return(lackgroup_gene)
 }
