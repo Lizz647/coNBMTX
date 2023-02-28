@@ -11,16 +11,26 @@ metatranscriptomics with sample-paired metagenomics data.
 
 ## Installation
 
+To install coNBMTX, you need to firstly install edgeR and metagenomeSeq:
+
+``` r
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("edgeR")
+BiocManager::install("metagenomeSeq")
+```
+
 You can install the development version of coNBMTX like so:
 
 ``` r
-# library(devtools)
-# install_github('Lizz647/coNBMTX')
+library(devtools)
+install_github('Lizz647/coNBMTX')
 ```
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+This is a basic example which shows you how to use coNBMTX:
 
 ``` r
 library(coNBMTX)
