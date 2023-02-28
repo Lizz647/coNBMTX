@@ -389,11 +389,6 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
 
   if(FCshrink){
 
-    if(i%%1000==0){
-      mes = paste("mtx shrink_FCs for ",i,"th gene",sep="")
-      message(mes)
-    }
-
     FCs_noNA = FCs[which(!is.na(FCs[,dim(design_mat)[2]])),]
 
     for(j in 2:dim(design_mat)[2]){
@@ -599,6 +594,8 @@ coNBMTX <- function(datamat,group_formula,normal_method="CSS"){
       adj.P.Vals[[i]] = padj.bf_list[[i]][left_gene]
     }
   }
+
+  message("Done!")
 
   output = list(LeftGene=LeftGene,GeneName=GeneName,NA_list=NA_list,AvgDNA=AvgDNA,AvgRNA=AvgRNA,
                 Dispersions=post_phi_mtx.full[left_gene],nonconDispersions=genewise_phi_mtx_nc.full[left_gene],

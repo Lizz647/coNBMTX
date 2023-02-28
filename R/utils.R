@@ -94,7 +94,6 @@ get_median <- function(x,geom_means){
 
 # get dispersion trend
 GetTrendReg <- function(trenddataframe_mtx,genewise_phi_mtx){
-  print(trenddataframe_mtx)
   reg <- stats::glm(dispersion~mu,data=trenddataframe_mtx, family = stats::Gamma(link = "identity"), start = c(0.5,0.5))
   ## fit iteratively
   flag = 1000000; maxit = 10; index=c()
