@@ -35,10 +35,15 @@ This is a basic example which shows you how to use coNBMTX:
 ``` r
 library(coNBMTX)
 
+# Obtain the sample-paired data, with genes on rows and samples on columns.
 mtxtable <- matrix(rnbinom(5000,size=10,mu=50),nrow=100)
 mgxtable <- matrix(rnbinom(5000,size=5,mu=30),nrow=100)
 metatable <- data.frame(ID=paste("S",seq(1:50),sep=""),group=c(rep("a",25),rep("b",25)))
+
+# Packaging data using a list.
 datamat = list(mtx=mtxtable,mgx=mgxtable,metadata=metatable)
+
+# Specify the formula in regression.
 group_formula = "~group"
 
 output = coNBMTX(datamat=datamat,group_formula=group_formula)
