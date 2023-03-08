@@ -40,6 +40,10 @@ mtxtable <- matrix(rnbinom(5000,size=10,mu=50),nrow=100)
 mgxtable <- matrix(rnbinom(5000,size=5,mu=30),nrow=100)
 metatable <- data.frame(ID=paste("S",seq(1:50),sep=""),group=c(rep("a",25),rep("b",25)))
 
+# the colnames of mtx and mgx should be the same with the rownames of the metadata
+colnames(mgxtable) = colnames(mtxtable)
+rownames(metatable) = colnames(mtxtable)
+
 # Packaging data using a list.
 datamat = list(mtx=mtxtable,mgx=mgxtable,metadata=metatable)
 
